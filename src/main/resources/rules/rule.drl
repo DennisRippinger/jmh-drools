@@ -1,0 +1,50 @@
+package group.msg.dto
+
+rule "Drools 1 test"
+when
+    $inputOutput: InputOutput(input == 1)
+then
+    $inputOutput.setOutput(1);
+end
+
+rule "Drools 2 test"
+when
+    $inputOutput : InputOutput(input == 2)
+then
+    $inputOutput.setOutput(2);
+end
+
+rule "Drools 3 test"
+when
+    $inputOutput : InputOutput(input == 3)
+then
+    $inputOutput.setOutput(3);
+end
+
+rule "Drools 4 test"
+when
+    $inputOutput : InputOutput(input == 4)
+then
+    $inputOutput.setOutput(4);
+end
+
+rule "Drools 5 test"
+when
+    $inputOutput : InputOutput(input == 5)
+then
+    $inputOutput.setOutput(5);
+end
+
+rule "Drools 6 test"
+when
+    $inputOutput : InputOutput(input == 6)
+then
+    $inputOutput.setOutput(6);
+end
+
+rule "Drools 7 test"
+when
+    $inputOutput : InputOutput(input >= 7 && input < 9)
+then
+    $inputOutput.setOutput(7);
+end
