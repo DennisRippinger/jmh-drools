@@ -13,8 +13,7 @@ public class DroolsBenchmark {
 
         DroolsEvaluation droolsEvaluation;
 
-        @Setup(Level.Invocation)
-        public void doSetup(){
+        public DroolsState() {
             droolsEvaluation = new DroolsEvaluation();
         }
     }
