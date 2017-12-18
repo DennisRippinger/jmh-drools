@@ -6,6 +6,9 @@ import org.openjdk.jmh.annotations.*;
 
 import java.util.concurrent.TimeUnit;
 
+
+@Warmup(iterations = 10)
+@Measurement(iterations = 10)
 public class DroolsBenchmark {
     
     @State(Scope.Thread)
