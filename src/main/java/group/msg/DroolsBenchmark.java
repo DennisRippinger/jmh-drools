@@ -1,6 +1,7 @@
 package group.msg;
 
 import group.msg.drools.DroolsEvaluation;
+import group.msg.drools.DroolsExcelEvaluation;
 import group.msg.dto.InputOutput;
 import org.openjdk.jmh.annotations.*;
 
@@ -16,8 +17,11 @@ public class DroolsBenchmark {
 
         DroolsEvaluation droolsEvaluation;
 
+        DroolsExcelEvaluation droolsExcelEvaluation;
+
         public DroolsState() {
             droolsEvaluation = new DroolsEvaluation();
+            droolsExcelEvaluation = new DroolsExcelEvaluation();
         }
     }
 
@@ -25,8 +29,16 @@ public class DroolsBenchmark {
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
     @OutputTimeUnit(TimeUnit.SECONDS)
-    public void testMethod(DroolsState state) {
+    public void simpleDrl(DroolsState state) {
         state.droolsEvaluation.evaluateRules(new InputOutput());
+    }
+
+
+    @Benchmark
+    @BenchmarkMode(Mode.Throughput)
+    @OutputTimeUnit(TimeUnit.SECONDS)
+    public void excel(DroolsState state) {
+        state.droolsExcelEvaluation.evaluateRules(new InputOutput());
     }
 
 }
