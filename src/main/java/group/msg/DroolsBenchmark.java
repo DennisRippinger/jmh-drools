@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit;
 @Measurement(iterations = 10)
 public class DroolsBenchmark {
     
-    @State(Scope.Thread)
+    @State(Scope.Benchmark)
     public static class DroolsState{
 
         DroolsEvaluation droolsEvaluation;

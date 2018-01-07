@@ -84,6 +84,10 @@
         <javac.target>1.8</javac.target>
         <apache-poi-version>3.13</apache-poi-version>
         <uberjar.name>benchmarks</uberjar.name>
+
+        <asciidoctor.maven.plugin.version>1.5.6</asciidoctor.maven.plugin.version>
+        <asciidoctorj.version>1.5.6</asciidoctorj.version>
+        <jruby.version>1.7.26</jruby.version>
     </properties>
 
     <build>
@@ -128,6 +132,28 @@
                     </execution>
                 </executions>
             </plugin>
+
+            <plugin>
+                <groupId>org.asciidoctor</groupId>
+                <artifactId>asciidoctor-maven-plugin</artifactId>
+                <version>${asciidoctor.maven.plugin.version}</version>
+                <configuration>
+                    <sourceDirectory>src/docs/asciidoc</sourceDirectory>
+                    <backend>html5</backend>
+                    <sourceHighlighter>coderay</sourceHighlighter>
+                    <attributes>
+                        <imagesdir>./images</imagesdir>
+                        <toc>left</toc>
+                        <icons>font</icons>
+                        <sectanchors>true</sectanchors>
+                        <!-- set the idprefix to blank -->
+                        <idprefix/>
+                        <idseparator>-</idseparator>
+                        <docinfo1>true</docinfo1>
+                    </attributes>
+                </configuration>
+            </plugin>
+
         </plugins>
         <pluginManagement>
             <plugins>
@@ -167,6 +193,7 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>2.17</version>
                 </plugin>
+
             </plugins>
         </pluginManagement>
     </build>

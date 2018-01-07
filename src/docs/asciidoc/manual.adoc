@@ -1,0 +1,180 @@
+= JMH
+Doc Writer <doc.writer@example.org>
+ifndef::imagesdir[:imagesdir: images]
+
+Dies ist ein Testprojekt zum Evaluieren von Drools als Entscheidungsengine.
+Die Dokumentation reflektiert das gewonnene Wissen über JMH.
+
+== Einführung JMH
+Die Ausführungszeit von Anwendungen hängt stark davon ab wie deren Algorithmen geschrieben sind.
+Zur Evaluierung von Java Code bietet sich das seit 2013 verfügbarere http://openjdk.java.net/projects/code-tools/jmh/[JMH Framework] (Java Microbenchmarking Harness) an.
+Es testet eine Java Methode durch häufige Ausführung und Messung der Ausführungszeit, wobei es viele Defaults mit anbietet, e.g.  Warmup Phasen für die JVM und mehrere JVM Instanzen um eventuelle Einmaleffekte zu filtern.
+
+== Simples JMH Beispiel
+Um einen JMH Test zu erzeugen, setzen wir zunächst ein eigenes Projekt auf.
+
+[source,bash]
+.Generate JMH Archtype
+----
+$ mvn archetype:generate \
+          -DinteractiveMode=false \
+          -DarchetypeGroupId=org.openjdk.jmh \
+          -DarchetypeArtifactId=jmh-java-benchmark-archetype \
+          -DgroupId=org.sample \
+          -DartifactId=test \
+          -Dversion=1.9
+----
+
+Das nun erzeugte Projekt enthält eine Klasse `MyBenchmark`.
+Diese enthält eine zu testende Methode:
+
+[source,java]
+.Generate JMH Archtype
+----
+@Benchmark
+public void testMethod() {
+    // place your benchmarked code here
+}
+----
+Mittels `mvn package` wird das Projekt als eine standalone jar names `benchmarks.jar` gebaut.
+Diese wird mittels der Konsole durch `java -jar benchmarks.jar` ausgeführt.
+Unter Annahme der Standardparameter dauert dies zirca 8 Minuten.
+Die Zeit kommt nicht aus der Komplexität den zu testenden Methoden, sondern aus der Zeit die der JMH Benchmark benötigt um Ergebnisse zu sammeln.
+Diese Parameter sind:
+
+* 10 Forks: JVM Instanzen die sequenziell gestartet werden
+* 20 Warm Up Iterations: Der eigentliche Test, aber die Ergebnisse zählen noch nicht.
+Dies ist wichtig um innerhalb der JVM evtl. Compiliervorgänge (https://en.wikipedia.org/wiki/Just-in-time_compilation[JIT]) auszuführen um sich einem realen Ergebnis zu nähern.
+* 20 Iterations: Die eigentlichen Tests.
+
+Am Ende des Tests gibt es in der Konsole eine Zusammenfassung für die gesammelten Daten:
+
+[source,bash]
+.Generate JMH Archtype
+----
+Result: 2858018346,557 ± (99.9%) 52659889,481 ops/s [Average]
+  Statistics: (min, avg, max) = (1861506972,388, 2858018346,557, 3097671856,112), stdev = 222965269,448
+  Confidence interval (99.9%): [2805358457,075, 2910678236,038]
+
+# Run complete. Total time: 00:07:53
+
+
+Benchmark                      Mode  Samples           Score   Score error  Units
+o.s.MyBenchmark.testMethod    thrpt      200  2858018346,557  52659889,481  ops/s <1>
+----
+
+Wichtig ist letztlich die letzte Zeile (1).
+Sie zeigt an wie viele Operationen in der Sekunde ausgeführt werden können (ops/s -> Operations per Second).
+Dies ist eine Default Einheit, es können aber auch andere Einheiten wie Millisekunden oder Minuten angegeben werden.
+Da die Methode leer ist, kommt es zu dem Ergebnis von fast drei Milliarden ausführenden die Sekunde.
+Default ist ebenso der eigentliche Test Modus.
+Hier ist es thrpt (thrpt -> throughput), sprich wie viele Operationen können pro Zeiteinheit ausgeführt werden.
+Möglich ist aber auch zu messen wie lange durchschnittliche eine Ausführung braucht.
+
+
+[NOTE]
+JMH benötigt nicht zwingend ein eigenes Projekt.
+Der Archtype bringt einen Code Generator mit und fasst den finalen Code in einer einzelnen Jar zusammen.
+Die Ausführung dieser hilft dabei neue JVM Instanzen zu starten.
+
+== Einen State halten
+Die Ausführung von bestimmten Codeblöcken ist eine Sache, aber vielleicht soll ein Framework getestet werden oder das Zusammenspiel im eigenen Code.
+Dies erfordert die Instanziierung einer Klasse, die Verwendung von Feldern führt jedoch zu einer Fehlermeldung seitens JMH.
+Wie es doch geht zeigt dieses Beispiel:
+
+[source,java, indent=0]
+.State
+----
+    @State(Scope.Benchmark) <1>
+    public static class DroolsState{
+
+        DroolsEvaluation droolsEvaluation;
+
+        DroolsExcelEvaluation droolsExcelEvaluation;
+
+        public DroolsState() {
+            droolsEvaluation = new DroolsEvaluation();
+            droolsExcelEvaluation = new DroolsExcelEvaluation();
+        }
+    }
+
+    @Benchmark
+    public void simpleDrl(DroolsState state) { <2>
+            state.droolsEvaluation.evaluateRules(new InputOutput());
+    }
+----
+
+<1> Eine innere Klasse wird hier verwendet um einen State zu definieren.
+`Benchmark` definiert hier das alle Tests/Threads dieselbe Instanz erhalten.
+<2> Der Benchmark nimmt als Parameter die Instanz an.
+
+== Blackhole
+
+In der Benchmark Methode wird üblicherweise nichts mit der Rückgabe eine Methode gemacht, es geht eigentlich um die Ausführung an sich.
+In solchen Fällen _kann_ der Compiler aber zu dem Schluss kommen, dass er relevante Schritte in einer Art optimiert die das Ergebnis verfälschen.
+Hierbei kann ein Pseudoconsumer helfen der den Compiler darüber hinweg täuscht.
+
+[source,java, indent=0]
+.State
+----
+    @Benchmark
+    public void testMethod(Blackhole blackhole) {
+        blackhole.consume(someNoneVoidMethod());
+    }
+----
+Das Blackhole konsumiert Rückgabewerte einer zu testenden Methode.
+Es wird ähnlich wie das State Objekt als Parameter übergeben.
+Mit den Werten passiert nichts, das Blackhole führt keine weiteren Statistiken über die ihm übergebenen Werte.
+
+== Visualisierung
+JMH Ergebnisse über die Konsole sind ok, wer es etwas visueller mag kann sich die Daten der Testläufe auch als JSON speichern lassen.
+Via `java -jar benchmarks.jar -rf json` lässt sich zusätzlich zu den Konsolen Ausgaben einen Bericht in JSON speichern.
+Dieser enthält die verwendeten Parameter, alle Zwischenergebnisse und das kumulierte Endergebnis.
+
+Die Seite http://jmh.morethan.io/[jmh.morethan.io] erlaubt es diese Ergebnisse zu parsen und erstellt daraus einen Optischen Report
+
+image::jmh-vis.png[JMH-Visualisation]
+
+Dazu existiert auch ein Jenkins Plugin welches die Ergebnisse kumuliert und Charts über die Builds hinweg darstellt: https://wiki.jenkins.io/display/JENKINS/JMH+Report+Plugin
+
+== Profiler
+
+Neben der eigentlichen Ausführungszeit können aber auch interne JVM Vorgänge interessant sein, wie die Speicherauslastung oder das Garbage Collection Verhalten unter Last.
+JMH erlaubt es zusätzliche Profiler zu laden.
+Die Verfügbaren können mittels `java -jar target/benchmarks.jar -lprof` aufgelistet werden.
+Für Version 1.19 von JMH sind das:
+
+      cl: Classloader profiling via standard MBeans
+    comp: JIT compiler profiling via standard MBeans
+      gc: GC profiling via standard MBeans
+   hs_cl: HotSpot (tm) classloader profiling via implementation-specific MBeans
+ hs_comp: HotSpot (tm) JIT compiler profiling via implementation-specific MBeans
+   hs_gc: HotSpot (tm) memory manager (GC) profiling via implementation-specific MBeans
+   hs_rt: HotSpot (tm) runtime profiling via implementation-specific MBeans
+  hs_thr: HotSpot (tm) threading subsystem via implementation-specific MBeans
+   stack: Simple and naive Java stack profiler
+
+Die Ausgaben dieser Profiler werden ebenfalls in der Konsole wiedergegeben.
+Wer es etwas komfortabler mag und ein Oracle JVM/JDK nutzt, kann zusätzlich einen http://www.oracle.com/technetwork/java/javaseproducts/mission-control/java-mission-control-1998576.html[Flight Recorder] Profiler nutzen, mehr dazu https://jaxenter.de/java-flight-recorder-57537[hier].
+Das Projekt https://github.com/biboudis/jmh-profilers[jmh-profilers] nutzt das SPI von JMH; es kann einfach als Maven dependency hinzugefügt werden.
+
+[source,xml, indent=0]
+----
+<dependency>
+  <groupId>com.github.biboudis</groupId>
+  <artifactId>jmh-profilers</artifactId>
+  <version>0.1.4</version>
+</dependency>
+----
+
+[WARNING]
+Der Flight Recorder ist ein Oracle eigenes Feature das nicht teil anderer JVM Distributionen (OpenJDK, OpenJ9, Azul,...) ist.
+Ferner ist zu beachten das die Nutzung des Flight Recorders auf Produktionsumgebungen Lizenzkosten nach sich zieht, für die Entwicklung selbst aber http://www.adam-bien.com/roller/abien/entry/java_mission_control_development_pricing[frei] ist.
+
+Mittels des Befehls: `java -XX:+UnlockCommercialFeatures -jar target/benchmarks.jar -prof profilers.FlightRecordingProfiler` wird in der JVM das Feature freigeschaltet und dann vom Profiler verwendet.
+Flight Recorder liegt üblicherweise in einer Oracle JDK Distribution unter `bin/jmc.exe`.
+
+image::flight-recorder.png[Flight Recorder]
+
+[NOTE]
+`jmh-profilers` benötigt mindestens JMH 1.8
